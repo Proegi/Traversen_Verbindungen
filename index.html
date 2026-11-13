@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Traversen sicher verbinden</title>
+<style>
+:root{
+  --blau:#004993;--blau-2:#1D4E9E;--blau-hell:#D4EAFA;--blau-blass:#EDF4FC;
+  --orange:#F39100;--ok:#1E7B4F;--bad:#B32C22;
+  --ink:#202020;--ink-2:#545454;--ink-3:#8A8A8A;--line:#DADADA;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:#F4F5F6;color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.55;padding:24px 16px 64px}
+.sheet{max-width:920px;margin:0 auto}
+button{font-family:inherit;font-size:14px;font-weight:600;background:var(--blau);color:#fff;border:1px solid var(--blau);padding:9px 16px;cursor:pointer}
+button:hover{background:#003A78;border-color:#003A78}
+button:focus-visible,select:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+button.ghost{background:#fff;color:var(--blau)}
+button.ghost:hover{background:var(--blau-hell);color:var(--blau)}
+button.ghost.on{background:var(--blau);color:#fff}
+button.tool{background:#fff;color:var(--ink);border-color:var(--ink-3);font-weight:500}
+button.tool:hover{background:var(--blau-blass);border-color:var(--blau)}
+button.tool.on{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:700}
+
+.head{background:#fff;border:1px solid var(--line);margin-bottom:20px}
+.head-bar{background:var(--orange);color:#fff;padding:7px 20px;font-size:13px;font-weight:600;letter-spacing:.02em;display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}
+.head-body{background:var(--blau);color:#fff;padding:22px 20px 20px}
+h1{font-size:clamp(22px,3.4vw,30px);font-weight:700;line-height:1.15;margin:0 0 6px}
+.subtitle{margin:0;font-size:16px;color:#C9DCF0}
+.head-note{padding:16px 20px 18px;border-top:1px solid var(--line)}
+.head-note p{margin:0 0 8px;max-width:70ch}
+.head-note p:last-child{margin-bottom:0}
+.quelle{font-size:13.5px;color:var(--ink-2)}
+
+.task{background:#fff;border:1px solid var(--line);margin-bottom:20px}
+.task-bar{background:var(--blau);color:#fff;padding:9px 20px;display:flex;gap:14px;align-items:baseline}
+.task-bar .num{font-size:13px;font-weight:700;color:var(--orange);flex:0 0 auto}
+.task-bar h2{font-size:15px;font-weight:600;margin:0;letter-spacing:.01em}
+.task-body{padding:18px 20px 20px}
+.task-body p{margin:0 0 12px;max-width:70ch}
+.task-body p.auftrag{font-weight:700}
+
+.table-wrap{overflow-x:auto;margin:0 0 16px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+thead th{background:var(--blau);color:#fff;border-color:var(--blau);font-size:12.5px;font-weight:600}
+td.model{width:11em;font-weight:600;background:var(--blau-hell)}
+td ul{margin:0;padding-left:18px}
+
+.case{border:1px solid var(--line);border-left:5px solid var(--blau-2);padding:12px 16px 14px;margin:0 0 12px}
+.case:last-child{margin-bottom:0}
+.case p{margin:0 0 8px}
+select{font-family:inherit;font-size:14.5px;padding:8px 10px;border:1px solid var(--ink-3);background:#fff;color:var(--ink);min-width:17em;max-width:100%}
+.verdict{margin-top:10px;padding:10px 14px;border-left:4px solid var(--line);background:#F6F6F6;font-size:14px;color:var(--ink-2);max-width:74ch}
+.verdict:empty{display:none}
+.verdict.ja{border-left-color:var(--ok);background:#EEF6F1;color:var(--ink)}
+.verdict.nein{border-left-color:var(--bad);background:#FBEFEE;color:var(--ink)}
+.verdict.info{border-left-color:var(--blau-2);background:var(--blau-blass);color:var(--ink)}
+
+/* ---------- 3D-Werkbank ---------- */
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.row .lbl{font-size:13px;color:var(--ink-2);margin-right:4px;flex:0 0 100%}
+#view{position:relative;border:1px solid var(--line);background:var(--blau-blass);margin:0 0 12px}
+#c3d{display:block;width:100%;height:420px;touch-action:none;cursor:grab}
+#c3d:active{cursor:grabbing}
+.view-tools{position:absolute;right:8px;top:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.view-tools button{padding:5px 10px;font-size:13px}
+.view-hint{position:absolute;left:10px;bottom:8px;font-size:12.5px;color:var(--ink-2);background:rgba(255,255,255,.8);padding:2px 8px;pointer-events:none}
+#status{font-size:14px;font-weight:600;margin:0 0 8px}
+#log{margin:8px 0 0;padding-left:22px;font-size:14px;color:var(--ink-2)}
+#log:empty{display:none}
+.panel[hidden]{display:none}
+.answer{border:1px solid var(--ink-3);min-height:96px;padding:8px 12px;line-height:1.6}
+.answer:empty::before{content:attr(data-ph);color:var(--ink-3);font-style:italic}
+@media print{body{background:#fff;padding:0}.view-tools,.view-hint{display:none}}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="head">
+    <div class="head-bar"><span>Fachkraft für Veranstaltungstechnik · Lernfeld 7</span><span>Traversensysteme</span></div>
+    <div class="head-body">
+      <h1>Traversen sicher verbinden</h1>
+      <p class="subtitle">Verbindungssysteme kennen, in 3D montieren und prüfen</p>
+    </div>
+    <div class="head-note">
+      <p>Eine Traversenstrecke ist nur so sicher wie ihre Verbindungen. Auf dieser Seite lernst du die drei Verbindungsarten aus dem Prolyte Black Book kennen, montierst sie am 3D-Modell und entscheidest, wann ein Bauteil nicht mehr verwendet werden darf.</p>
+      <p class="quelle">Grundlage: Prolyte Black Book, deutsche Ausgabe 2023. Seitenangaben beziehen sich auf diese Ausgabe. Die 3D-Modelle sind vereinfacht und nicht maßstäblich. Im Betrieb gilt immer das Anwenderhandbuch des Herstellers.</p>
+    </div>
+  </header>
+
+  <section class="task">
+    <div class="task-bar"><span class="num">INFO</span><h2>Drei Verbindungsarten</h2></div>
+    <div class="task-body">
+      <p>Traversenmodule sind meist 2 bis 3 Meter lang, gebraucht werden aber größere Längen. Deshalb braucht es ein schnelles, effizientes und starkes Verbindungssystem (Black Book, S. 14).</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Verbindungsart</th><th>Aufbau</th><th>Vorteile laut Black Book</th></tr></thead>
+          <tbody>
+            <tr><td class="model">Stift / Gabel<br><span class="quelle">S. 14</span></td>
+              <td>Die „weibliche“ Gabel wird über einen zylindrischen Bolzen mit dem „männlichen“ Stift verbunden. Die Bolzen werden auf Scherung belastet. Diese Verbindung wird auch in der Krantechnik verwendet.</td>
+              <td><ul><li>Wenige Einzelteile</li><li>Sehr starke Verbindung</li><li>Sehr schnelle und einfache Montage</li></ul></td></tr>
+            <tr><td class="model">Konische Verbindung (CCS)<br><span class="quelle">S. 14</span></td>
+              <td>Ein massives, doppelkonisches Verbindungselement (Konuskupplung) sitzt in den Verbindungsstücken, die an die Enden der Hauptstreben geschweißt sind. Konische Stifte halten es fest und werden auf Scherung belastet.</td>
+              <td><ul><li>Universelles System, genaue Ausrichtung</li><li>Verbindung zu 100 % starr</li><li>Einbaulänge entspricht der Traversenlänge</li><li>Verschleißkompensation in den Bohrlöchern</li><li>Verbindungselemente leicht ersetzbar</li></ul></td></tr>
+            <tr><td class="model">Verto-Verbindung<br><span class="quelle">S. 15</span></td>
+              <td>Ein genutetes Verbindungselement aus gehärtetem Stahl wird von Stahlkugeln gehalten. Eine drehbare Stahlmutter drückt die Kugeln in die Nuten. Die Mutter wird von Hand gedreht und durch einen Sicherungsbügel in der verriegelten Position fixiert.</td>
+              <td><ul><li>Keine Werkzeuge erforderlich</li><li>Extrem schnelle, geräuschlose Montage</li><li>Verbindung zu 100 % starr</li><li>Einbaulänge entspricht der Traversenlänge</li></ul></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="task">
+    <div class="task-bar"><span class="num">AUFGABE 1</span><h2>Verbindungsart erkennen</h2></div>
+    <div class="task-body">
+      <p class="auftrag">Ordne jede Aussage der passenden Verbindungsart zu.</p>
+      <div id="q1"></div>
+    </div>
+  </section>
+
+  <section class="task">
+    <div class="task-bar"><span class="num">AUFGABE 2</span><h2>3D-Werkbank</h2></div>
+    <div class="task-body">
+      <div class="row" id="modes">
+        <button class="ghost on" data-mode="bau">a) Montieren</button>
+        <button class="ghost" data-mode="fehler">b) Fehler finden</button>
+        <button class="ghost" data-mode="teile">c) Bauteile benennen</button>
+      </div>
+
+      <div class="panel" id="p-bau">
+        <p class="auftrag">Verbinde die beiden Traversenmodule fachgerecht. Wähle ein Teil oder Werkzeug und klicke dann im Modell auf die orange markierten Ecken. Die Reihenfolge musst du selbst herausfinden. Bearbeite alle drei Verbindungsarten.</p>
+        <div class="row" id="types">
+          <span class="lbl">Verbindungsart</span>
+          <button class="ghost on" data-type="konus">Konisch (CCS)</button>
+          <button class="ghost" data-type="gabel">Stift / Gabel</button>
+          <button class="ghost" data-type="verto">Verto</button>
+        </div>
+        <div class="row" id="tray"><span class="lbl">Teilekiste und Werkzeug</span></div>
+      </div>
+      <div class="panel" id="p-fehler" hidden>
+        <p class="auftrag">Sichtprüfung vor dem Hochziehen: An genau einer der vier Ecken ist die Verbindung nicht in Ordnung. Drehe das Modell, finde die Ecke und klicke sie an. Es gibt fünf Runden.</p>
+      </div>
+      <div class="panel" id="p-teile" hidden>
+        <p class="auftrag">Klicke im Modell auf das gesuchte Bauteil.</p>
+      </div>
+
+      <p id="status"></p>
+      <div id="view">
+        <canvas id="c3d"></canvas>
+        <div class="view-tools">
+          <button class="ghost" id="b-xray">Durchsicht</button>
+          <button class="ghost" id="b-in" aria-label="Vergrößern">+</button>
+          <button class="ghost" id="b-out" aria-label="Verkleinern">−</button>
+          <button class="ghost" id="b-view">Ansicht zurück</button>
+        </div>
+        <div class="view-hint">Ziehen: drehen · Klicken: auswählen</div>
+      </div>
+      <div class="verdict info" id="msg"></div>
+      <ol id="log"></ol>
+      <div class="row" style="margin-top:12px">
+        <button id="b-next" hidden>Nächste Runde</button>
+        <button class="ghost" id="b-reset">Neu starten</button>
+      </div>
+      <div class="verdict nein" id="nogl" hidden>Das 3D-Modell konnte nicht geladen werden. Prüfe die Internetverbindung und lade die Seite neu.</div>
+    </div>
+  </section>
+
+  <section class="task">
+    <div class="task-bar"><span class="num">AUFGABE 3</span><h2>Weiter verwenden oder aussondern?</h2></div>
+    <div class="task-body">
+      <p>Das Black Book empfiehlt eine Sichtprüfung vor jedem Einsatz und mindestens einmal pro Jahr eine dokumentierte Inspektion durch eine sachkundige Person (S. 43). Für die Inspektion nennt es feste Kriterien (S. 44 bis 46).</p>
+      <p class="auftrag">Entscheide für jeden Befund, ob das Bauteil weiter verwendet werden darf.</p>
+      <div id="q3"></div>
+    </div>
+  </section>
+
+  <section class="task">
+    <div class="task-bar"><span class="num">AUFGABE 4</span><h2>Sicher arbeiten mit Traversen</h2></div>
+    <div class="task-body">
+      <p class="auftrag">Wähle jeweils die richtige Antwort.</p>
+      <div id="q4"></div>
+    </div>
+  </section>
+
+  <section class="task">
+    <div class="task-bar"><span class="num">AUFGABE 5</span><h2>Begründen</h2></div>
+    <div class="task-body">
+      <p class="auftrag">Ein Kollege markiert eine beschädigte Traverse mit Klebeband und stellt sie zurück ins Lager. Erkläre, warum das nicht ausreicht und was stattdessen zu tun ist.</p>
+      <div class="answer" contenteditable="true" data-ph="Hier schreiben"></div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------- Auswahlaufgaben ---------- */
+(function(){
+  function quiz(id, opts, items){
+    var box = document.getElementById(id);
+    items.forEach(function(it, i){
+      var c = document.createElement('div'); c.className = 'case';
+      var p = document.createElement('p'); p.textContent = (i+1) + '. ' + it.q; c.appendChild(p);
+      var s = document.createElement('select'); s.setAttribute('aria-label', 'Antwort ' + (i+1));
+      var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Bitte auswählen'; s.appendChild(o0);
+      (it.o || opts).forEach(function(t, k){ var o = document.createElement('option'); o.value = k; o.textContent = t; s.appendChild(o); });
+      var v = document.createElement('div'); v.className = 'verdict'; v.setAttribute('aria-live', 'polite');
+      s.addEventListener('change', function(){
+        if (s.value === '') { v.className = 'verdict'; v.textContent = ''; return; }
+        var ok = +s.value === it.a;
+        v.className = 'verdict ' + (ok ? 'ja' : 'nein');
+        v.textContent = ok ? 'Richtig. ' + it.e : 'Noch nicht richtig. Lies noch einmal genau nach.';
+      });
+      c.appendChild(s); c.appendChild(v); box.appendChild(c);
+    });
+  }
+  var ARTEN = ['Stift / Gabel', 'Konische Verbindung', 'Verto-Verbindung'];
+  quiz('q1', ARTEN, [
+    {q:'Die Montage ist geräuschlos und kommt ohne Werkzeug aus.', a:2, e:'Das nennt das Black Book als Vorteile der Verto-Verbindung (S. 15).'},
+    {q:'Verschleiß in den Bohrlöchern wird durch die Form der Stifte ausgeglichen.', a:1, e:'Die konischen Stifte kompensieren Verschleiß in den Bohrlöchern (S. 14).'},
+    {q:'Diese Verbindung wird auch in der Krantechnik verwendet.', a:0, e:'So beschreibt das Black Book die Stift-/Gabelverbindung (S. 14).'},
+    {q:'Stahlkugeln werden in die Nuten des Verbindungselements gedrückt.', a:2, e:'Das ist das Prinzip der Verto-Verbindung (S. 15).'},
+    {q:'Ein zylindrischer Bolzen verbindet ein „weibliches“ mit einem „männlichen“ Teil.', a:0, e:'Gabel und Stift werden durch einen zylindrischen Bolzen verbunden (S. 14).'},
+    {q:'Das Verbindungselement ist massiv und doppelkonisch.', a:1, e:'Die Konuskupplung sitzt in den angeschweißten Verbindungsstücken (S. 14).'}
+  ]);
+  var URTEIL = ['Weiter verwenden', 'Aussondern bzw. außer Betrieb nehmen'];
+  quiz('q3', URTEIL, [
+    {q:'Eine Hauptstrebe ist zwischen zwei Knotenpunkten dauerhaft um 4 mm aus der Mittellinie verformt.', a:1, e:'Die Grenze liegt bei 3 mm. Darüber muss die Traverse außer Betrieb genommen werden (S. 44).'},
+    {q:'Ein konisches Bohrloch im Verbindungsstück ist um 6 % seines Durchmessers aufgeweitet.', a:0, e:'Ablegereif ist das Verbindungsstück erst bei mehr als 10 % Vergrößerung (S. 45). Der Befund sollte trotzdem beobachtet werden.'},
+    {q:'Auf einem Verbindungsstück ist ein Hammerschlag zu sehen: 3 mm tief und 12 mm lang.', a:1, e:'Kratzer, Schnitte oder Hammerschläge mit mehr als 2 mm Tiefe und mehr als 10 mm Länge sind ein Ablegekriterium (S. 45).'},
+    {q:'An einem Traversenmodul fehlt ein Diagonalträger.', a:1, e:'Sind Diagonal- oder Endträger gebrochen oder fehlen sie, muss die Traverse außer Betrieb genommen werden (S. 45).'},
+    {q:'Ein konischer Stift hat am schmalen Ende einen Grat und einen Pilzkopf.', a:1, e:'Grate, Pilzköpfe und scharfe Kanten am schmaleren Ende sind ein Entsorgungskriterium. Konische Stifte sind Verschleißteile und werden ersetzt (S. 46).'},
+    {q:'Ein Kratzer verringert die Wandstärke einer Hauptstrebe örtlich um 10 %, die Querschnittsfläche um etwa 2 %.', a:0, e:'Die Grenzen liegen bei mehr als 25 % der Wandstärke oder mehr als 10 % der Querschnittsfläche (S. 44).'},
+    {q:'Zwei Module lassen sich nur mit erheblichem Kraftaufwand verbinden, weil ein Verbindungsstück verformt ist.', a:1, e:'Ein so stark verformtes Verbindungsstück ist ein Ablegekriterium (S. 45).'}
+  ]);
+  quiz('q4', null, [
+    {q:'Eine Traverse wird mit Elektrokettenzügen (4 m/min) gehoben. Die Last beträgt 300 kg. Mit welcher Last musst du wegen der dynamischen Kräfte rechnen?', o:['300 kg','360 kg','420 kg','600 kg'], a:2, e:'Bei Standardhebezeugen mit 4 m/min wird der Faktor 1,4 verwendet: 300 kg · 1,4 = 420 kg (S. 14).'},
+    {q:'Womit werden konische Stifte eingeschlagen?', o:['Mit einem Stahlhammer','Mit einem Kupferhammer','Mit einem Gummihammer','Mit der Hand'], a:1, e:'Kupfer ist ähnlich schwer wie Stahl, aber dehnbarer. Das schont die Verzinkung der Stifte und verringert Schäden bei einem Fehlschlag (S. 37).'},
+    {q:'Eine Traverse hängt an Polyester-Rundschlingen in der Nähe von Scheinwerfern. Was ist zusätzlich nötig?', o:['Nichts, Polyester ist hitzefest','Eine zweite Polyester-Rundschlinge','Eine nicht brennbare Sekundärsicherung aus Stahldraht oder Kette','Ein Brandschutzanstrich der Schlinge'], a:2, e:'Polyester verliert über 100 °C seine volle Tragfähigkeit. Deshalb braucht es eine zweite, nicht brennbare Sicherung (S. 37).'},
+    {q:'Auf welche Kraft muss der Falldämpfer beim Klettern an Traversen einen Sturz höchstens begrenzen?', o:['1,4 kN','6 kN','12 kN','25 kN'], a:1, e:'Der Falldämpfer begrenzt die Sturzkraft auf maximal 6 kN, das entspricht etwa 600 kg (S. 48).'},
+    {q:'Ein Seil wird zwischen zwei Punkten einer Traverse gespannt und als horizontale Rettungsleine benutzt. Wie bewertet das Black Book das?', o:['Zulässig, wenn das Seil dick genug ist','Zulässig an den Hauptstreben','Nicht zulässig: Es gibt an einer Traverse keinen dafür zugelassenen Anschlagpunkt','Zulässig mit zwei Schäkeln'], a:2, e:'Das Black Book nennt diesen Ansatz naiv und unsicher. Vertraut werden darf nur zertifizierten oder schriftlich genehmigten Systemen (S. 48).'},
+    {q:'Wie wird die Wirksamkeit des Potentialausgleichs an einer Traversenkonstruktion überprüft?', o:['Durch Sichtprüfung der Erdungsklemme','Gar nicht, Aluminium leitet immer','Durch Messung des Erdungswiderstands durch eine qualifizierte, elektrisch unterwiesene Person','Durch Auslösen des FI-Schutzschalters'], a:2, e:'Die Wirksamkeit muss mit geeigneten Messgeräten gemessen werden (S. 47).'},
+    {q:'Was gilt für das Klettern auf Traversen?', o:['Erlaubt, sobald ein Gurt getragen wird','Stets vermeiden; wenn unvermeidbar, nie alleine und nur mit Nachweis der Tragfähigkeit','Auf leichten Traversen unbedenklich','Erlaubt, wenn die Traverse unbeladen ist'], a:1, e:'Klettern ist stets zu vermeiden. Es braucht eine Risikobewertung, eine rettungsfähige zweite Person und den Nachweis, dass die Traverse die Kräfte aufnimmt (S. 47 und 48).'}
+  ]);
+})();
+
+/* ---------- 3D-Werkbank ---------- */
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function noGL(){ $('nogl').hidden = false; $('view').style.display = 'none'; }
+  if (!window.THREE) { noGL(); return; }
+  var T = THREE, canvas = $('c3d'), wrap = $('view'), renderer;
+  try { renderer = new T.WebGLRenderer({canvas:canvas, antialias:true}); } catch (e) { noGL(); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  var scene = new T.Scene(); scene.background = new T.Color(0xEDF4FC);
+  var cam = new T.PerspectiveCamera(38, 1, 1, 1000);
+  scene.add(new T.HemisphereLight(0xffffff, 0x7d8894, 0.95));
+  var sun = new T.DirectionalLight(0xffffff, 0.75); sun.position.set(40, 90, 70); scene.add(sun);
+
+  var HOME = {th:0.75, ph:1.12, r:180}, orbit = {th:HOME.th, ph:HOME.ph, r:HOME.r};
+  function placeCam(){
+    cam.position.set(orbit.r*Math.sin(orbit.ph)*Math.sin(orbit.th), orbit.r*Math.cos(orbit.ph), orbit.r*Math.sin(orbit.ph)*Math.cos(orbit.th));
+    cam.lookAt(0, 0, 0);
+  }
+  function resize(){
+    var w = wrap.clientWidth, h = Math.round(Math.min(460, Math.max(280, w*0.58)));
+    canvas.style.height = h + 'px'; renderer.setSize(w, h, false);
+    cam.aspect = w/h; cam.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  /* ----- Zustand ----- */
+  var JS = [[1,1],[1,-1],[-1,1],[-1,-1]];   // Ecken: Vorzeichen y, z
+  var C = 12, L = 56, GAP = 26;
+  var mode = 'bau', type = 'konus', xray = false, tool = null;
+  var st, si = 0, errs = 0;                  // Montage
+  var fRound = 0, fBad = -1, fDef = null, fOrder = [], fScore = 0, fSolved = false; // Fehlersuche
+  var tOrder = [], tIdx = 0, tErr = 0;       // Bauteile
+  var root = null, grpB = null, markers = [], gapNow = GAP;
+
+  function fresh(full){
+    return {joined:!!full, j:[0,1,2,3].map(function(){ return full ? {el:1,pin:2,clip:1,nut:1,br:1} : {el:0,pin:0,clip:0,nut:0,br:0}; })};
+  }
+  var NAMES = {haupt:'Hauptstrebe', diag:'Diagonalträger', end:'Endträger', vstk:'Verbindungsstück', kupplung:'Konuskupplung (Verbindungselement)',
+    stift:'Konischer Stift', clip:'Sicherungsclip', gabel:'Gabel („weiblich“)', zunge:'Stift („männlich“)', bolzen:'Zylindrischer Bolzen',
+    mutter:'Drehbare Stahlmutter', buegel:'Sicherungsbügel', element:'Genutetes Verbindungselement'};
+
+  var STEPS = {
+    konus:[
+      {t:'el', txt:'Konuskupplungen in die vier Verbindungsstücke eines Moduls stecken'},
+      {t:'schieben', g:1, txt:'Zweites Modul gerade aufschieben'},
+      {t:'pin', txt:'Konische Stifte in die Bohrungen einsetzen'},
+      {t:'hammer', txt:'Stifte mit dem Kupferhammer einschlagen (S. 37)'},
+      {t:'clip', txt:'Jeden Stift mit einem Sicherungsclip sichern'}],
+    gabel:[
+      {t:'schieben', g:1, txt:'Module zusammenschieben: Stift („männlich“) in Gabel („weiblich“)'},
+      {t:'bolzen', txt:'Zylindrische Bolzen durch Gabel und Stift stecken (S. 14)'},
+      {t:'clip', txt:'Jeden Bolzen mit einem Sicherungsclip sichern'}],
+    verto:[
+      {t:'el', txt:'Genutete Verbindungselemente einsetzen'},
+      {t:'schieben', g:1, txt:'Zweites Modul gerade aufschieben'},
+      {t:'nut', txt:'Stahlmuttern von Hand in die verriegelte Position drehen (S. 15)'},
+      {t:'br', txt:'Sicherungsbügel schließen'}]
+  };
+  var TOOLS = {
+    konus:[['pin','Konischer Stift'],['hammer','Kupferhammer'],['clip','Sicherungsclip'],['el','Konuskupplung'],['stahl','Stahlhammer'],['schieben','Module zusammenschieben']],
+    gabel:[['clip','Sicherungsclip'],['kstift','Konischer Stift'],['bolzen','Zylindrischer Bolzen'],['schluessel','Schraubenschlüssel'],['schieben','Module zusammenschieben']],
+    verto:[['br','Sicherungsbügel schließen'],['hammer','Kupferhammer'],['nut','Mutter von Hand drehen'],['el','Genutetes Verbindungselement'],['schluessel','Schraubenschlüssel'],['schieben','Module zusammenschieben']]
+  };
+  var DEFECTS = [
+    {ty:'konus', f:function(q){ q.clip = 0; }, txt:'Hier fehlen die Sicherungsclips. Ungesicherte konische Stifte können sich lösen. Unzureichend gesicherte Verbindungsteile führen außerdem zu zusätzlicher Durchbiegung (S. 13).'},
+    {ty:'konus', f:function(q){ q.pin = 1; q.clip = 0; }, txt:'Die konischen Stifte sind nur eingesteckt, nicht eingeschlagen und nicht gesichert. Die Verbindung ist so nicht starr.'},
+    {ty:'gabel', f:function(q){ q.clip = 0; }, txt:'Der Bolzen steckt, ist aber nicht gesichert. Er kann herauswandern.'},
+    {ty:'gabel', f:function(q){ q.pin = 0; q.clip = 0; }, txt:'Hier fehlt der Bolzen. Die Bolzen übertragen die Kräfte auf Scherung (S. 14). Ohne Bolzen trägt diese Ecke nichts.'},
+    {ty:'verto', f:function(q){ q.br = 0; }, txt:'Der Sicherungsbügel ist offen. Erst der Bügel fixiert die Stahlmutter in der verriegelten Position (S. 15).'},
+    {ty:'verto', f:function(q){ q.nut = 0; q.br = 0; }, txt:'Die Stahlmutter ist nicht verriegelt und der Sicherungsbügel offen. Die Kugeln halten das Verbindungselement so nicht (S. 15).'}
+  ];
+  var TARGETS = ['haupt','diag','end','vstk','kupplung','stift','clip'];
+
+  /* ----- Geometrie ----- */
+  function M(col, o){
+    o = o || {};
+    return new T.MeshStandardMaterial({color:col, metalness:o.m == null ? 0.5 : o.m, roughness:o.r == null ? 0.5 : o.r,
+      transparent:!!o.t, opacity:o.t ? 0.28 : 1, depthWrite:!o.t});
+  }
+  function cyl(r1, r2, len, axis, m, seg){
+    var me = new T.Mesh(new T.CylinderGeometry(r1, r2, len, seg || 20), m);
+    if (axis === 'x') me.rotation.z = -Math.PI/2; else if (axis === 'z') me.rotation.x = Math.PI/2;
+    return me;
+  }
+  function box(a, b, c, m){ return new T.Mesh(new T.BoxGeometry(a, b, c), m); }
+  function put(parent, me, x, y, z, part, j){
+    me.position.set(x, y, z); me.userData.part = part; if (j != null) me.userData.joint = j; parent.add(me); return me;
+  }
+  function strut(parent, a, b, r, m, part){
+    var d = new T.Vector3().subVectors(b, a);
+    var me = new T.Mesh(new T.CylinderGeometry(r, r, d.length(), 10), m);
+    me.position.copy(a).add(b).multiplyScalar(0.5);
+    me.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.clone().normalize());
+    me.userData.part = part; parent.add(me);
+  }
+  function V(x, y, z){ return new T.Vector3(x, y, z); }
+
+  function buildModule(g, s, off, mat){
+    JS.forEach(function(q){ put(g, cyl(2.5, 2.5, L-off, 'x', mat.alu), s*(off+L)/2, q[0]*C, q[1]*C, 'haupt'); });
+    var ring = [[1,1],[1,-1],[-1,-1],[-1,1]], xa = off+8, xb = L-3;
+    [xa, xb].forEach(function(d){
+      for (var i = 0; i < 4; i++) { var a = ring[i], b = ring[(i+1)%4]; strut(g, V(s*d, a[0]*C, a[1]*C), V(s*d, b[0]*C, b[1]*C), 1.0, mat.alu2, 'end'); }
+    });
+    for (var f = 0; f < 4; f++) {
+      var p = ring[f], q = ring[(f+1)%4];
+      for (var k = 0; k < 3; k++) {
+        var x1 = xa + (xb-xa)*k/3, x2 = xa + (xb-xa)*(k+1)/3, a2 = k%2 ? q : p, b2 = k%2 ? p : q;
+        strut(g, V(s*x1, a2[0]*C, a2[1]*C), V(s*x2, b2[0]*C, b2[1]*C), 0.8, mat.alu2, 'diag');
+      }
+    }
+  }
+
+  function dispose(o){ o.traverse(function(n){ if (n.geometry) n.geometry.dispose(); if (n.material) n.material.dispose(); }); }
+
+  function rebuild(){
+    if (root) { scene.remove(root); dispose(root); }
+    root = new T.Group(); var A = new T.Group(); grpB = new T.Group(); root.add(A); root.add(grpB); markers = [];
+    var mat = {
+      alu:M(0xC9CED4, {t:xray}), alu2:M(0xB9C0C8), rec:M(0x9AA3AD, {t:xray}), steel:M(0x5E6770, {m:0.7}), dark:M(0x2E343A),
+      zinc:M(0xD9C77A, {m:0.6}), clip:M(0xF39100, {m:0.2}), nut:M(0x77818B, {m:0.7, t:xray}), ok:M(0x1E7B4F, {m:0.1}), white:M(0xFFFFFF, {m:0.1})
+    };
+    var off = type === 'gabel' ? 3.5 : 0;
+    buildModule(A, -1, off, mat); buildModule(grpB, 1, off, mat);
+
+    JS.forEach(function(q, j){
+      var y = q[0]*C, z = q[1]*C, sz = q[1], s = st.j[j];
+      if (type === 'konus' || type === 'verto') {
+        put(A, cyl(3.1, 3.1, 6, 'x', mat.rec), -3, y, z, 'vstk', j);
+        put(grpB, cyl(3.1, 3.1, 6, 'x', mat.rec), 3, y, z, 'vstk', j);
+      }
+      if (type === 'konus') {
+        if (s.el) {
+          put(A, cyl(1.5, 2.2, 4.6, 'x', mat.steel), 2.3, y, z, 'kupplung', j);
+          put(A, cyl(2.2, 1.5, 4.6, 'x', mat.steel), -2.3, y, z, 'kupplung', j);
+          put(A, cyl(2.35, 2.35, 0.5, 'x', mat.dark), 0, y, z, 'kupplung', j);
+        }
+        [-1, 1].forEach(function(side){
+          var g = side < 0 ? A : grpB;
+          if (s.pin) put(g, cyl(sz > 0 ? 1.05 : 0.7, sz > 0 ? 0.7 : 1.05, 9.5, 'z', mat.zinc), side*3, y, z + sz*(s.pin === 1 ? 3.2 : 0), 'stift', j);
+          if (s.clip) put(g, new T.Mesh(new T.TorusGeometry(1.25, 0.34, 8, 18), mat.clip), side*3, y, z - sz*4.1, 'clip', j);
+        });
+      } else if (type === 'gabel') {
+        put(A, box(1.6, 5.4, 4.6, mat.rec), -3.5, y, z, 'gabel', j);
+        put(A, box(7, 5.4, 1.1, mat.rec), 0, y, z+1.75, 'gabel', j);
+        put(A, box(7, 5.4, 1.1, mat.rec), 0, y, z-1.75, 'gabel', j);
+        put(grpB, box(1.6, 5.4, 4.6, mat.steel), 3.5, y, z, 'zunge', j);
+        put(grpB, box(6.2, 5.0, 2.0, mat.steel), 0.4, y, z, 'zunge', j);
+        if (s.pin) {
+          put(A, cyl(0.95, 0.95, 7.4, 'z', mat.zinc), 0, y, z, 'bolzen', j);
+          put(A, cyl(1.7, 1.7, 0.8, 'z', mat.zinc), 0, y, z + sz*3.3, 'bolzen', j);
+        }
+        if (s.clip) put(A, new T.Mesh(new T.TorusGeometry(1.25, 0.34, 8, 18), mat.clip), 0, y, z - sz*3.0, 'clip', j);
+      } else {
+        if (s.el) {
+          put(A, cyl(1.9, 1.9, 9.4, 'x', mat.steel), 0, y, z, 'element', j);
+          put(A, cyl(2.0, 2.0, 0.6, 'x', mat.dark), 3, y, z, 'element', j);
+          put(A, cyl(2.0, 2.0, 0.6, 'x', mat.dark), -3, y, z, 'element', j);
+        }
+        [-1, 1].forEach(function(side){
+          var g = side < 0 ? A : grpB, n = new T.Group();
+          n.position.set(side*4.4, y, z); n.rotation.x = s.nut ? 0 : 0.9;
+          put(n, cyl(4.0, 4.0, 2.6, 'x', mat.nut, 6), 0, 0, 0, 'mutter', j);
+          put(n, box(1.3, 0.9, 1.3, s.nut ? mat.ok : mat.white), 0, q[0]*3.75, 0, 'mutter', j);
+          g.add(n);
+          if (s.br) put(g, box(3.6, 1.6, 0.7, mat.clip), side*4.4, y, z + sz*3.9, 'buegel', j);
+          else put(g, box(0.7, 1.6, 3.6, mat.clip), side*4.4, y, z + sz*5.4, 'buegel', j);
+        });
+      }
+      var mk = new T.Mesh(new T.SphereGeometry(6.5, 16, 12), new T.MeshBasicMaterial({color:0xF39100, transparent:true, opacity:0, depthWrite:false}));
+      mk.position.set(0, y, z); mk.userData.joint = j; mk.userData.marker = true; mk.userData.pending = pending(j);
+      root.add(mk); markers.push(mk);
+    });
+    grpB.position.x = gapNow;
+    scene.add(root);
+  }
+
+  /* ----- Montage ----- */
+  function stepDone(step, j){
+    var q = st.j[j];
+    switch (step.t) {
+      case 'el': return !!q.el; case 'pin': return q.pin >= 1; case 'bolzen': return q.pin >= 1;
+      case 'hammer': return q.pin === 2; case 'clip': return !!q.clip; case 'nut': return !!q.nut; case 'br': return !!q.br;
+    }
+    return false;
+  }
+  function pending(j){
+    if (mode !== 'bau') return false;
+    var step = STEPS[type][si];
+    return !!step && !step.g && !stepDone(step, j);
+  }
+  function say(text, cls){ var m = $('msg'); m.className = 'verdict ' + (cls || 'info'); m.textContent = text; }
+  function wrongMsg(t){
+    var cur = STEPS[type][si].t;
+    if (t === 'stahl') return 'Kein Stahlhammer. Das Black Book verlangt einen Kupferhammer (S. 37): Kupfer ist dehnbarer, schont die Verzinkung der Stifte und richtet bei einem Fehlschlag weniger Schaden an.';
+    if (type === 'verto' && (t === 'hammer' || t === 'schluessel')) return 'Die Verto-Verbindung braucht kein Werkzeug (S. 15). Die Stahlmutter wird von Hand gedreht.';
+    if (type === 'gabel' && t === 'kstift') return 'Konische Stifte gehören zur konischen Verbindung. Gabel und Stift werden mit einem zylindrischen Bolzen verbunden (S. 14).';
+    if (type === 'gabel' && t === 'schluessel') return 'Hier wird nichts verschraubt. Die Kraft überträgt ein gesteckter Bolzen.';
+    if (t === 'clip' && cur === 'hammer') return 'Ein nur eingesteckter Stift sitzt noch nicht fest. Erst einschlagen, dann sichern.';
+    if (t === 'schieben') return 'Noch nicht zusammenschieben. Es fehlt vorher noch etwas an den Verbindungsstücken.';
+    if (cur === 'schieben') return 'Dafür müssen die Module erst zusammengeschoben sein.';
+    return 'Dieser Schritt ist noch nicht an der Reihe. Überlege, was vorher erledigt sein muss.';
+  }
+  function logStep(step){ var li = document.createElement('li'); li.textContent = step.txt; $('log').appendChild(li); }
+  function apply(t, j){
+    var steps = STEPS[type], step = steps[si];
+    if (!step) { say('Die Verbindung ist bereits vollständig.', 'ja'); return; }
+    if (t !== step.t) { errs++; say(wrongMsg(t), 'nein'); status(); return; }
+    if (step.g) { st.joined = true; logStep(step); si++; }
+    else {
+      if (stepDone(step, j)) { say('Diese Ecke ist schon erledigt. Es fehlen noch andere Ecken.'); return; }
+      var q = st.j[j];
+      if (t === 'el') q.el = 1; else if (t === 'pin' || t === 'bolzen') q.pin = 1; else if (t === 'hammer') q.pin = 2;
+      else if (t === 'clip') q.clip = 1; else if (t === 'nut') q.nut = 1; else if (t === 'br') q.br = 1;
+      if ([0,1,2,3].every(function(k){ return stepDone(step, k); })) { logStep(step); si++; tool = null; }
+    }
+    rebuild(); tray(); status();
+    if (si >= steps.length) say('Verbindung vollständig und gesichert. Fehlversuche: ' + errs + '. Unten steht die richtige Reihenfolge. Probiere jetzt die nächste Verbindungsart.', 'ja');
+    else if (STEPS[type][si].g || !tool) say('Gut. Wie geht es weiter? Wähle das nächste Teil oder Werkzeug.');
+    else say('Passt. Weiter mit den übrigen Ecken.');
+  }
+  function tray(){
+    var box = $('tray');
+    Array.prototype.slice.call(box.querySelectorAll('button')).forEach(function(b){ box.removeChild(b); });
+    TOOLS[type].forEach(function(p){
+      var b = document.createElement('button'); b.className = 'tool' + (tool === p[0] ? ' on' : ''); b.textContent = p[1];
+      b.addEventListener('click', function(){
+        if (si >= STEPS[type].length) { say('Die Verbindung ist bereits vollständig.', 'ja'); return; }
+        if (p[0] === 'schieben') { tool = null; apply('schieben'); tray(); return; }
+        tool = p[0]; tray(); say('Ausgewählt: ' + p[1] + '. Klicke jetzt im Modell auf eine Ecke der Verbindung.');
+      });
+      box.appendChild(b);
+    });
+  }
+
+  /* ----- Fehlersuche ----- */
+  function shuffle(a){ for (var i = a.length-1; i > 0; i--) { var k = Math.floor(Math.random()*(i+1)), t = a[i]; a[i] = a[k]; a[k] = t; } return a; }
+  function fStart(){ fOrder = shuffle(DEFECTS.slice()).slice(0, 5); fRound = 0; fScore = 0; errs = 0; fNext(); }
+  function fNext(){
+    fDef = fOrder[fRound]; type = fDef.ty; st = fresh(true); fBad = Math.floor(Math.random()*4); fDef.f(st.j[fBad]); fSolved = false;
+    gapNow = 0; $('b-next').hidden = true; rebuild(); status();
+    say('Verbindungsart: ' + ({konus:'Konisch (CCS)', gabel:'Stift / Gabel', verto:'Verto'})[type] + '. Welche Ecke ist nicht in Ordnung?');
+  }
+  function fClick(j){
+    if (fSolved) return;
+    if (j !== fBad) { errs++; say('Diese Ecke ist in Ordnung. Drehe das Modell und vergleiche alle vier Ecken, auch von innen.', 'nein'); status(); return; }
+    fSolved = true; fScore++; fRound++;
+    if (fRound >= fOrder.length) { say('Gefunden. ' + fDef.txt + ' Alle fünf Runden geschafft, Fehlklicks insgesamt: ' + errs + '.', 'ja'); }
+    else { say('Gefunden. ' + fDef.txt, 'ja'); $('b-next').hidden = false; }
+    status();
+  }
+
+  /* ----- Bauteile benennen ----- */
+  function tStart(){
+    type = 'konus'; st = fresh(false); st.j.forEach(function(q, i){ q.el = 1; q.pin = i < 2 ? 2 : 1; q.clip = i < 2 ? 1 : 0; });
+    tOrder = shuffle(TARGETS.slice()); tIdx = 0; tErr = 0; gapNow = GAP; rebuild(); status();
+    say('Das Modell zeigt eine geöffnete konische Verbindung. Die Begriffe stammen aus dem Black Book (S. 14 und S. 44).');
+  }
+  function tClick(part){
+    if (tIdx >= tOrder.length) return;
+    if (part === tOrder[tIdx]) {
+      tIdx++;
+      if (tIdx >= tOrder.length) say('Alle Bauteile gefunden. Fehlklicks: ' + tErr + '.', 'ja'); else say('Richtig, das ist: ' + NAMES[part] + '.', 'ja');
+    } else { tErr++; say('Das ist: ' + NAMES[part] + '. Gesucht ist etwas anderes.', 'nein'); }
+    status();
+  }
+
+  function status(){
+    var s = $('status');
+    if (mode === 'bau') { var n = STEPS[type].length; s.textContent = si >= n ? 'Fertig: alle ' + n + ' Schritte erledigt.' : 'Schritt ' + (si+1) + ' von ' + n + ' · Fehlversuche: ' + errs; }
+    else if (mode === 'fehler') s.textContent = 'Runde ' + Math.min(fRound + (fSolved ? 0 : 1), fOrder.length) + ' von ' + fOrder.length + ' · Fehlklicks: ' + errs;
+    else s.textContent = tIdx >= tOrder.length ? 'Fertig.' : 'Gesucht (' + (tIdx+1) + ' von ' + tOrder.length + '): ' + NAMES[tOrder[tIdx]];
+    markers.forEach(function(m){ m.userData.pending = pending(m.userData.joint); });
+  }
+  function startBau(){
+    st = fresh(false); si = 0; errs = 0; tool = null; gapNow = GAP; $('log').innerHTML = ''; rebuild(); tray(); status();
+    say('Wähle ein Teil oder Werkzeug aus der Teilekiste. Tipp: Mit „Durchsicht“ siehst du in die Rohre hinein.');
+  }
+  function setMode(m){
+    mode = m; $('b-next').hidden = true; $('log').innerHTML = '';
+    ['bau','fehler','teile'].forEach(function(k){ $('p-'+k).hidden = k !== m; });
+    Array.prototype.forEach.call($('modes').children, function(b){ b.classList.toggle('on', b.dataset.mode === m); });
+    if (m === 'bau') { type = document.querySelector('#types .on').dataset.type; startBau(); } else if (m === 'fehler') fStart(); else tStart();
+  }
+
+  /* ----- Bedienung ----- */
+  Array.prototype.forEach.call($('modes').children, function(b){ b.addEventListener('click', function(){ setMode(b.dataset.mode); }); });
+  Array.prototype.forEach.call(document.querySelectorAll('#types button'), function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#types button'), function(x){ x.classList.toggle('on', x === b); });
+      type = b.dataset.type; startBau();
+    });
+  });
+  $('b-reset').addEventListener('click', function(){ setMode(mode); });
+  $('b-next').addEventListener('click', fNext);
+  $('b-xray').addEventListener('click', function(){ xray = !xray; this.classList.toggle('on', xray); rebuild(); });
+  $('b-in').addEventListener('click', function(){ orbit.r = Math.max(45, orbit.r*0.82); });
+  $('b-out').addEventListener('click', function(){ orbit.r = Math.min(260, orbit.r/0.82); });
+  $('b-view').addEventListener('click', function(){ orbit.th = HOME.th; orbit.ph = HOME.ph; orbit.r = HOME.r; });
+
+  var drag = null, ray = new T.Raycaster(), ndc = new T.Vector2();
+  canvas.addEventListener('pointerdown', function(e){ drag = {x:e.clientX, y:e.clientY, m:0}; try { canvas.setPointerCapture(e.pointerId); } catch (x) {} });
+  canvas.addEventListener('pointermove', function(e){
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    orbit.th -= dx*0.008; orbit.ph = Math.min(2.95, Math.max(0.2, orbit.ph - dy*0.008));
+    drag.m += Math.abs(dx) + Math.abs(dy); drag.x = e.clientX; drag.y = e.clientY;
+  });
+  canvas.addEventListener('pointerup', function(e){ var d = drag; drag = null; if (d && d.m < 7) pick(e); });
+  canvas.addEventListener('pointercancel', function(){ drag = null; });
+  function pick(e){
+    var r = canvas.getBoundingClientRect();
+    ndc.set((e.clientX - r.left)/r.width*2 - 1, -(e.clientY - r.top)/r.height*2 + 1);
+    placeCam(); cam.updateMatrixWorld(); ray.setFromCamera(ndc, cam);
+    var hits = ray.intersectObjects(root.children, true), i;
+    if (mode === 'teile') {
+      for (i = 0; i < hits.length; i++) if (!hits[i].object.userData.marker && hits[i].object.userData.part) { tClick(hits[i].object.userData.part); return; }
+      return;
+    }
+    var j = null;
+    for (i = 0; i < hits.length; i++) if (hits[i].object.userData.joint != null) { j = hits[i].object.userData.joint; break; }
+    if (j == null) { if (mode === 'bau' && tool) say('Klicke direkt auf eine der vier Ecken, an denen die Hauptstreben aufeinandertreffen.'); return; }
+    if (mode === 'fehler') { fClick(j); return; }
+    if (si >= STEPS[type].length) return;
+    if (!tool) { say('Wähle zuerst ein Teil oder Werkzeug aus der Teilekiste.'); return; }
+    apply(tool, j);
+  }
+
+  var t0 = 0;
+  function loop(t){
+    requestAnimationFrame(loop); t0 = t || 0;
+    var target = st.joined ? 0 : GAP; gapNow += (target - gapNow)*0.14; if (Math.abs(target - gapNow) < 0.02) gapNow = target;
+    if (grpB) grpB.position.x = gapNow;
+    var pulse = 0.2 + 0.12*Math.sin(t0/260);
+    markers.forEach(function(m){ m.material.opacity = m.userData.pending ? pulse : 0; });
+    placeCam(); renderer.render(scene, cam);
+  }
+  resize();
+  var h = location.hash.slice(1);
+  setMode(h === 'fehler' || h === 'teile' ? h : 'bau');
+  loop(0);
+})();
+</script>
+</body>
+</html>
